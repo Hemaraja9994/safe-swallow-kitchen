@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safe Swallow Kitchen</title>
+<meta name="description" content="Indian recipes mapped to IDDSI levels 0–6, with the check to do before serving, a flow-test helper and a printable diet sheet.">
+<meta name="theme-color" content="#17212E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===== 1. DESIGN TOKENS (from ASLP App Kit) ===== */
+:root{
+  --paper:#F7F9FB; --grid:#E3E9F0; --surface:#FFFFFF;
+  --ink:#17212E; --muted:#556375; --line:#CBD5E1;
+  --accent:#1E5BB8; --warn:#9A5B00; --danger:#B42318;
+  /* IDDSI colour code (© IDDSI, CC BY-SA 4.0) */
+  --l0:#FFFFFF; --l1:#8A8D91; --l2:#E58BB5; --l3:#F2C230; --l4:#3E9B4F; --l5:#EE8A2B; --l6:#2F6FD0;
+  --font:"Atkinson Hyperlegible","Noto Sans Kannada","Noto Sans Telugu","Noto Sans Devanagari",system-ui,sans-serif;
+  --r-sm:4px; --r-md:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E151E; --grid:#1B2633; --surface:#141E2A;
+    --ink:#E6ECF3; --muted:#9AA8B8; --line:#2B3A4B;
+    --accent:#78AEFF; --warn:#F2B24C; --danger:#FF8A80;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E151E; --grid:#1B2633; --surface:#141E2A;
+  --ink:#E6ECF3; --muted:#9AA8B8; --line:#2B3A4B;
+  --accent:#78AEFF; --warn:#F2B24C; --danger:#FF8A80;
+}
+
+/* ===== 2. BASE ===== */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:1rem;line-height:1.55;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+:lang(kn) body,:lang(te) body,:lang(hi) body{line-height:1.7}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--muted)}
+h2,h3,h4{line-height:1.25}
+
+/* ===== 3. HEADER ===== */
+header.top{background:var(--ink);color:var(--paper)}
+header.top .wrap{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;padding-block:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand h1{font-size:1.15rem;margin:0}
+.brand small{display:block;color:color-mix(in srgb,var(--paper) 70%,transparent);font-size:.8rem;font-weight:400}
+.top-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.net{font-size:.8rem;padding:4px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--paper) 35%,transparent)}
+.net[data-state="offline"]{background:var(--warn);color:#fff;border-color:transparent}
+select.lang{font:inherit;font-size:.9rem;padding:6px 8px;border-radius:var(--r-sm);border:1px solid transparent;background:var(--paper);color:var(--ink)}
+
+/* ===== 4. INTRO + LADDER (the memorable element) ===== */
+.intro{padding:28px 0 6px;max-width:66ch}
+.intro h2{font-size:clamp(1.5rem,3.4vw,2.1rem);margin:0 0 8px}
+.intro p{margin:0;color:var(--muted)}
+.ladder{margin:22px 0 6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:18px}
+.ladder-cols{display:grid;grid-template-columns:5.5rem 1fr 1fr;gap:6px 10px;align-items:stretch}
+.ladder-cols .colhead{font-size:.85rem;font-weight:700;color:var(--muted);padding-bottom:2px}
+.lvnum{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums}
+.rung{font:inherit;text-align:left;display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 12px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.rung .sw{flex:none;width:18px;height:18px;border-radius:3px;border:1px solid rgba(0,0,0,.25)}
+.rung .nm{font-weight:700;font-size:.92rem;line-height:1.25}
+.rung .ct{margin-left:auto;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.rung[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);background:var(--surface)}
+.rung.empty{visibility:hidden}
+.ladder-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:12px;font-size:.85rem}
+button{font:inherit;font-size:.92rem;cursor:pointer;border-radius:var(--r-sm);padding:9px 16px;border:1px solid var(--ink)}
+button.primary{background:var(--ink);color:var(--paper)}
+button.ghost{background:transparent;color:var(--ink)}
+button.small{padding:5px 12px;font-size:.85rem}
+button:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:560px){ .ladder-cols{grid-template-columns:2.6rem 1fr 1fr} .rung .ct{display:none} .rung{padding:6px 8px} .rung .nm{font-size:.84rem} }
+
+/* ===== 5. LEVEL DETAIL + RECIPES ===== */
+.level-info{margin:18px 0 0;padding:16px 18px;border-left:6px solid var(--lvc,var(--ink));background:var(--surface);border-radius:0 var(--r-md) var(--r-md) 0;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.level-info h3{margin:0 0 6px;font-size:1.1rem}
+.level-info p{margin:4px 0;max-width:75ch}
+.level-info .test{font-size:.92rem}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0 10px}
+.controls input[type="search"]{font:inherit;flex:1 1 240px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--ink)}
+.recipes{display:grid;gap:14px;grid-template-columns:1fr;padding-bottom:12px}
+@media (min-width:820px){ .recipes{grid-template-columns:1fr 1fr} }
+.recipe{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:0;overflow:hidden;display:flex;flex-direction:column}
+.recipe-head{display:flex;gap:12px;align-items:flex-start;padding:16px 16px 10px}
+.badge{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:52px;height:52px;border-radius:var(--r-sm);font-weight:700;border:1px solid rgba(0,0,0,.2)}
+.badge b{font-size:1.3rem;line-height:1}
+.badge span{font-size:.62rem;line-height:1.1;text-align:center}
+.recipe h4{margin:0;font-size:1.05rem}
+.recipe .local{font-size:.9rem;color:var(--muted)}
+.recipe .lvname{font-size:.85rem;color:var(--muted)}
+.recipe details{border-top:1px solid var(--line)}
+.recipe summary{cursor:pointer;padding:10px 16px;font-weight:700;font-size:.92rem}
+.recipe .body{padding:0 16px 14px;font-size:.94rem}
+.recipe .body h5{margin:12px 0 4px;font-size:.88rem}
+.recipe ul,.recipe ol{margin:0;padding-left:1.3em}
+.recipe li{margin:2px 0}
+.check{background:color-mix(in srgb,var(--accent) 9%,transparent);border-radius:var(--r-sm);padding:8px 10px;margin-top:10px}
+.watch{background:color-mix(in srgb,var(--warn) 12%,transparent);border-radius:var(--r-sm);padding:8px 10px;margin-top:8px}
+.recipe-foot{margin-top:auto;padding:10px 16px 14px;display:flex;justify-content:flex-end}
+.add[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.empty-state{padding:18px;background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-md)}
+
+/* ===== 6. TOOLS ROW: flow test + high-risk ===== */
+.tools{display:grid;gap:20px;grid-template-columns:1fr;margin:18px 0}
+@media (min-width:860px){ .tools{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)} }
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:20px}
+.panel h3{margin:0 0 8px;font-size:1.05rem}
+.panel p{margin:4px 0 10px}
+label.field{display:block;font-weight:700;font-size:.92rem;margin-top:10px}
+.hint{display:block;font-weight:400;color:var(--muted);font-size:.82rem}
+input[type="text"],input[type="number"]{font:inherit;width:100%;padding:9px 10px;margin-top:6px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
+.syringe{display:flex;align-items:center;gap:14px;margin-top:14px}
+.syringe svg{flex:none}
+.flow-out{font-size:1.15rem;font-weight:700}
+.risk{display:grid;gap:0;grid-template-columns:1fr}
+.risk div{display:grid;grid-template-columns:9.5rem 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.risk div:last-child{border-bottom:0}
+.risk b{font-weight:700}
+@media (max-width:520px){ .risk div{grid-template-columns:1fr;gap:2px} }
+
+/* ===== 7. DIET SHEET ===== */
+.sheet{margin:0 0 28px}
+.sheet-grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media (min-width:700px){ .sheet-grid{grid-template-columns:1fr 1fr 1fr} }
+.sheet-list{margin:14px 0 0;padding:0;list-style:none}
+.sheet-list li{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.sheet-list .sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex:none}
+.sheet-list .grow{flex:1}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.print-only{display:none}
+
+/* ===== 8. FOOTER, TOAST, PRINT ===== */
+footer{border-top:1px solid var(--line);background:var(--surface);padding:18px 0 26px;font-size:.85rem;color:var(--muted)}
+footer p{margin:4px 0;max-width:85ch}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:var(--r-sm);transition:opacity .2s,transform .2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+@media print{
+  body{background:#fff;color:#000}
+  body > *:not(main),main > *:not(#sheetPrint){display:none!important}
+  #sheetPrint{display:block!important}
+  .print-only{display:block}
+  .sheet-print h2{font-size:18pt;margin:0 0 4pt}
+  .sheet-print table{width:100%;border-collapse:collapse;margin-top:8pt;font-size:11pt}
+  .sheet-print th,.sheet-print td{border:1px solid #888;padding:5pt;text-align:left;vertical-align:top}
+  .sheet-print .recipe-print{break-inside:avoid;margin-top:12pt;border-top:1px solid #888;padding-top:6pt;font-size:11pt}
+  .sheet-print .recipe-print h3{margin:0 0 3pt;font-size:12.5pt}
+  .sheet-print ul,.sheet-print ol{margin:2pt 0;padding-left:16pt}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#F7F9FB"/><rect x="10" y="12" width="20" height="7" rx="2" fill="#8A8D91"/><rect x="10" y="22" width="20" height="7" rx="2" fill="#E58BB5"/><rect x="10" y="32" width="44" height="7" rx="2" fill="#F2C230"/><rect x="10" y="42" width="44" height="7" rx="2" fill="#3E9B4F"/><rect x="34" y="52" width="20" height="7" rx="2" fill="#EE8A2B"/></svg>
+      <h1><span data-i18n="appName">Safe Swallow Kitchen</span><small data-i18n="appSub">Indian recipes mapped to IDDSI levels</small></h1>
+    </div>
+    <div class="top-tools">
+      <span class="net" id="net" role="status" aria-live="polite"></span>
+      <label class="sr" for="lang" data-i18n="language">Language</label>
+      <select id="lang" class="lang">
+        <option value="en">English</option><option value="kn">ಕನ್ನಡ</option><option value="te">తెలుగు</option><option value="hi">हिन्दी</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h2 data-i18n="introTitle">Cook the level the therapist prescribed</h2>
+    <p data-i18n="introText">Pick a drink or food level to see Indian recipes made to that texture and the quick check to do before every serving.</p>
+  </section>
+
+  <!-- IDDSI LADDER -->
+  <section class="ladder" aria-labelledby="ladderTitle">
+    <h3 id="ladderTitle" class="sr" data-i18n="ladderTitle">IDDSI levels</h3>
+    <div class="ladder-cols" id="ladder"></div>
+    <div class="ladder-foot">
+      <span class="muted" data-i18n="ladderNote">Level 7 (easy to chew and regular foods) is not covered here.</span>
+      <button class="ghost small" id="showAll" type="button" data-i18n="showAll">Show all recipes</button>
+    </div>
+  </section>
+
+  <div id="levelInfo"></div>
+
+  <div class="controls">
+    <label class="sr" for="q" data-i18n="search">Search recipes</label>
+    <input type="search" id="q" data-i18n-ph="searchPh" placeholder="Search: ragi, curd rice, dal…">
+    <span class="muted" id="count" aria-live="polite"></span>
+  </div>
+  <p class="muted" id="langNote" style="margin:0 0 12px;font-size:.88rem" data-i18n="langNote"></p>
+  <section class="recipes" id="recipes" aria-label="Recipes"></section>
+
+  <div class="tools">
+    <!-- FLOW TEST HELPER -->
+    <section class="panel" aria-labelledby="flowTitle">
+      <h3 id="flowTitle" data-i18n="flowTitle">Drink thickness check: IDDSI flow test</h3>
+      <p class="muted" data-i18n="flowHow">Fill a 10 mL slip-tip syringe with the drink, block the tip, then let it flow for 10 seconds. Enter what is left in the syringe.</p>
+      <label class="field" for="flowMl"><span data-i18n="flowLeft">mL left after 10 seconds</span>
+        <input type="number" id="flowMl" inputmode="decimal" min="0" max="10" step="0.5" placeholder="0–10">
+      </label>
+      <div class="syringe">
+        <svg id="syr" width="140" height="40" viewBox="0 0 140 40" aria-hidden="true"></svg>
+        <div><div class="flow-out" id="flowOut" aria-live="polite">–</div><div class="muted" id="flowNote" style="font-size:.85rem"></div></div>
+      </div>
+    </section>
+
+    <!-- HIGH RISK -->
+    <section class="panel" aria-labelledby="riskTitle">
+      <h3 id="riskTitle" data-i18n="riskTitle">Foods that carry a choking risk</h3>
+      <p class="muted" data-i18n="riskIntro">Avoid these unless the speech-language pathologist has cleared them. Indian examples are shown.</p>
+      <div class="risk" id="risk"></div>
+    </section>
+  </div>
+
+  <!-- DIET SHEET -->
+  <section class="panel sheet" aria-labelledby="sheetTitle">
+    <h3 id="sheetTitle" data-i18n="sheetTitle">Diet sheet for a patient</h3>
+    <p class="muted" data-i18n="sheetIntro">Add recipes with the button on each card, fill in the details, then print or save as PDF to hand to the family.</p>
+    <div class="sheet-grid">
+      <label class="field" for="pCode"><span data-i18n="pCode">Patient code</span><span class="hint" data-i18n="pCodeHint">Use a code, not a name.</span><input type="text" id="pCode" maxlength="40" autocomplete="off"></label>
+      <label class="field" for="pDrink"><span data-i18n="pDrink">Prescribed drink level</span><span class="hint">0–4</span><input type="text" id="pDrink" maxlength="40" autocomplete="off"></label>
+      <label class="field" for="pFood"><span data-i18n="pFood">Prescribed food level</span><span class="hint">3–7</span><input type="text" id="pFood" maxlength="40" autocomplete="off"></label>
+      <label class="field" for="pBy" style="grid-column:1/-1"><span data-i18n="pBy">Prescribed by (name, RCI number)</span><input type="text" id="pBy" maxlength="80" autocomplete="off"></label>
+    </div>
+    <ul class="sheet-list" id="sheetList"></ul>
+    <div class="actions">
+      <button class="primary" id="printBtn" type="button" data-i18n="printSheet">Print or save as PDF</button>
+      <button class="ghost" id="clearSheet" type="button" data-i18n="clearSheet">Clear diet sheet</button>
+    </div>
+  </section>
+
+  <!-- PRINT VIEW (hidden on screen) -->
+  <section id="sheetPrint" class="print-only sheet-print"></section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p data-i18n="disclaimer">For families and clinicians working with a speech-language pathologist. It does not replace a swallowing assessment. Check every batch with the IDDSI test before serving.</p>
+    <p><span data-i18n="iddsiCredit">IDDSI levels, colours and testing methods: © The International Dysphagia Diet Standardisation Initiative 2016, iddsi.org/framework, licensed under CC BY-SA 4.0. This app is not made or endorsed by IDDSI.</span> <a href="https://iddsi.org/framework/" target="_blank" rel="noopener" data-i18n="officialDefs">Official definitions</a></p>
+    <p id="credit"></p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ===== A. APP SETTINGS ===== */
+const APP = {
+  version: "0.1.0 (draft for clinical review)",
+  storageKey: "ssk-diet-sheet",
+  langKey: "aslp-kit-lang",
+  author: "Hemaraja Nayaka S",
+  affiliation: "Department of Audiology & Speech-Language Pathology, Yenepoya Medical College Hospital, Mangaluru"
+};
+
+/* ===== B. TRANSLATIONS (UI) ===== */
+const I18N = {
+  en:{
+    appName:"Safe Swallow Kitchen", appSub:"Indian recipes mapped to IDDSI levels", language:"Language",
+    netOnline:"Online", netOffline:"Offline – still working",
+    introTitle:"Cook the level the therapist prescribed",
+    introText:"Pick a drink or food level to see Indian recipes made to that texture and the quick check to do before every serving.",
+    ladderTitle:"IDDSI levels", drinks:"Drinks", foods:"Foods", level:"Level", recipesN:"recipes",
+    ladderNote:"Level 7 (easy to chew and regular foods) is not covered here.", showAll:"Show all recipes",
+    search:"Search recipes", searchPh:"Search: ragi, curd rice, dal…",
+    countAll:"{n} recipes", countLevel:"{n} recipes at level {l}", none:"No recipes match. Clear the search or pick another level.",
+    langNote:"Recipe steps are in English for now. Dish names are shown in your language.",
+    howToMake:"How to make it", ingredients:"Ingredients", method:"Method", checkBefore:"Check before serving", watchFor:"Watch out",
+    addSheet:"Add to diet sheet", inSheet:"On diet sheet", added:"Added to diet sheet", removed:"Removed from diet sheet",
+    testLabel:"How to test",
+    flowTitle:"Drink thickness check: IDDSI flow test",
+    flowHow:"Fill a 10 mL slip-tip syringe with the drink, block the tip, then let it flow for 10 seconds. Enter what is left in the syringe.",
+    flowLeft:"mL left after 10 seconds", flowRange:"Enter a number from 0 to 10.",
+    flowBoundary:"Right on a boundary. Repeat the test before deciding.",
+    flowL3note:"For level 4, use the fork drip and spoon tilt tests instead.",
+    riskTitle:"Foods that carry a choking risk",
+    riskIntro:"Avoid these unless the speech-language pathologist has cleared them. Indian examples are shown.",
+    sheetTitle:"Diet sheet for a patient",
+    sheetIntro:"Add recipes with the button on each card, fill in the details, then print or save as PDF to hand to the family.",
+    pCode:"Patient code", pCodeHint:"Use a code, not a name.", pDrink:"Prescribed drink level", pFood:"Prescribed food level", pBy:"Prescribed by (name, RCI number)",
+    sheetEmpty:"No recipes on the sheet yet. Use “Add to diet sheet” on a recipe card.",
+    remove:"Remove", printSheet:"Print or save as PDF", clearSheet:"Clear diet sheet", cleared:"Diet sheet cleared",
+    confirmClear:"Clear the diet sheet on this device?",
+    printTitle:"Swallowing diet sheet", printDate:"Date", printAlways:"Always test each batch before serving. If coughing, a wet voice or breathlessness occurs during meals, stop and contact the therapist.",
+    disclaimer:"For families and clinicians working with a speech-language pathologist. It does not replace a swallowing assessment. Check every batch with the IDDSI test before serving.",
+    iddsiCredit:"IDDSI levels, colours and testing methods: © The International Dysphagia Diet Standardisation Initiative 2016, iddsi.org/framework, licensed under CC BY-SA 4.0. This app is not made or endorsed by IDDSI.",
+    officialDefs:"Official definitions", builtBy:"Built by",
+    lv0:"Thin", lv1:"Slightly thick", lv2:"Mildly thick", lv3d:"Moderately thick", lv3f:"Liquidised", lv4d:"Extremely thick", lv4f:"Pureed", lv5:"Minced & moist", lv6:"Soft & bite-sized"
+  },
+  kn:{
+    appName:"Safe Swallow Kitchen", appSub:"IDDSI ಹಂತಗಳಿಗೆ ಹೊಂದಿಸಿದ ಭಾರತೀಯ ಅಡುಗೆಗಳು", language:"ಭಾಷೆ",
+    netOnline:"ಆನ್‌ಲೈನ್", netOffline:"ಆಫ್‌ಲೈನ್ – ಕೆಲಸ ಮುಂದುವರಿದಿದೆ",
+    introTitle:"ಚಿಕಿತ್ಸಕರು ಸೂಚಿಸಿದ ಹಂತದಲ್ಲೇ ಅಡುಗೆ ಮಾಡಿ",
+    introText:"ಪಾನೀಯ ಅಥವಾ ಆಹಾರದ ಹಂತವನ್ನು ಆರಿಸಿ. ಆ ಸಾಂದ್ರತೆಯ ಭಾರತೀಯ ಅಡುಗೆಗಳು ಮತ್ತು ಬಡಿಸುವ ಮೊದಲು ಮಾಡಬೇಕಾದ ಪರೀಕ್ಷೆ ಕಾಣಿಸುತ್ತದೆ.",
+    ladderTitle:"IDDSI ಹಂತಗಳು", drinks:"ಪಾನೀಯಗಳು", foods:"ಆಹಾರ", level:"ಹಂತ", recipesN:"ಅಡುಗೆಗಳು",
+    ladderNote:"ಹಂತ 7 (ಸುಲಭವಾಗಿ ಅಗಿಯುವ ಮತ್ತು ಸಾಮಾನ್ಯ ಆಹಾರ) ಇಲ್ಲಿ ಇಲ್ಲ.", showAll:"ಎಲ್ಲಾ ಅಡುಗೆಗಳನ್ನು ತೋರಿಸಿ",
+    search:"ಅಡುಗೆ ಹುಡುಕಿ", searchPh:"ಹುಡುಕಿ: ರಾಗಿ, ಮೊಸರನ್ನ, ಬೇಳೆ…",
+    countAll:"{n} ಅಡುಗೆಗಳು", countLevel:"ಹಂತ {l} ರಲ್ಲಿ {n} ಅಡುಗೆಗಳು", none:"ಯಾವುದೂ ಹೊಂದುತ್ತಿಲ್ಲ. ಹುಡುಕಾಟ ತೆರವುಗೊಳಿಸಿ ಅಥವಾ ಬೇರೆ ಹಂತ ಆರಿಸಿ.",
+    langNote:"ಅಡುಗೆ ವಿಧಾನ ಸದ್ಯಕ್ಕೆ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿದೆ. ಖಾದ್ಯದ ಹೆಸರುಗಳು ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿವೆ.",
+    howToMake:"ತಯಾರಿಸುವ ವಿಧಾನ", ingredients:"ಸಾಮಗ್ರಿಗಳು", method:"ವಿಧಾನ", checkBefore:"ಬಡಿಸುವ ಮೊದಲು ಪರೀಕ್ಷಿಸಿ", watchFor:"ಎಚ್ಚರಿಕೆ",
+    addSheet:"ಆಹಾರ ಪಟ್ಟಿಗೆ ಸೇರಿಸಿ", inSheet:"ಆಹಾರ ಪಟ್ಟಿಯಲ್ಲಿದೆ", added:"ಆಹಾರ ಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ", removed:"ಆಹಾರ ಪಟ್ಟಿಯಿಂದ ತೆಗೆಯಲಾಗಿದೆ",
+    testLabel:"ಪರೀಕ್ಷಿಸುವ ವಿಧಾನ",
+    flowTitle:"ಪಾನೀಯದ ದಪ್ಪ ಪರೀಕ್ಷೆ: IDDSI ಹರಿವು ಪರೀಕ್ಷೆ",
+    flowHow:"10 mL ಸ್ಲಿಪ್-ಟಿಪ್ ಸಿರಿಂಜ್‌ಗೆ ಪಾನೀಯ ತುಂಬಿಸಿ, ತುದಿ ಮುಚ್ಚಿ, ನಂತರ 10 ಸೆಕೆಂಡು ಹರಿಯಲು ಬಿಡಿ. ಸಿರಿಂಜ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.",
+    flowLeft:"10 ಸೆಕೆಂಡಿನ ನಂತರ ಉಳಿದ mL", flowRange:"0 ರಿಂದ 10 ರ ನಡುವಿನ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ.",
+    flowBoundary:"ಗಡಿರೇಖೆಯಲ್ಲಿದೆ. ನಿರ್ಧರಿಸುವ ಮೊದಲು ಮತ್ತೊಮ್ಮೆ ಪರೀಕ್ಷಿಸಿ.",
+    flowL3note:"ಹಂತ 4 ಕ್ಕೆ ಫೋರ್ಕ್ ಡ್ರಿಪ್ ಮತ್ತು ಸ್ಪೂನ್ ಟಿಲ್ಟ್ ಪರೀಕ್ಷೆ ಬಳಸಿ.",
+    riskTitle:"ಉಸಿರುಗಟ್ಟುವ ಅಪಾಯವಿರುವ ಆಹಾರಗಳು",
+    riskIntro:"ವಾಕ್-ಭಾಷಾ ಚಿಕಿತ್ಸಕರು ಅನುಮತಿಸದ ಹೊರತು ಇವುಗಳನ್ನು ತಪ್ಪಿಸಿ. ಭಾರತೀಯ ಉದಾಹರಣೆಗಳನ್ನು ನೀಡಲಾಗಿದೆ.",
+    sheetTitle:"ರೋಗಿಯ ಆಹಾರ ಪಟ್ಟಿ",
+    sheetIntro:"ಪ್ರತಿ ಕಾರ್ಡ್‌ನ ಬಟನ್‌ನಿಂದ ಅಡುಗೆ ಸೇರಿಸಿ, ವಿವರ ತುಂಬಿ, ನಂತರ ಕುಟುಂಬಕ್ಕೆ ನೀಡಲು ಮುದ್ರಿಸಿ ಅಥವಾ PDF ಆಗಿ ಉಳಿಸಿ.",
+    pCode:"ರೋಗಿಯ ಕೋಡ್", pCodeHint:"ಹೆಸರಲ್ಲ, ಕೋಡ್ ಬಳಸಿ.", pDrink:"ಸೂಚಿಸಿದ ಪಾನೀಯ ಹಂತ", pFood:"ಸೂಚಿಸಿದ ಆಹಾರ ಹಂತ", pBy:"ಸೂಚಿಸಿದವರು (ಹೆಸರು, RCI ಸಂಖ್ಯೆ)",
+    sheetEmpty:"ಪಟ್ಟಿಯಲ್ಲಿ ಇನ್ನೂ ಅಡುಗೆಗಳಿಲ್ಲ. ಅಡುಗೆ ಕಾರ್ಡ್‌ನಲ್ಲಿ “ಆಹಾರ ಪಟ್ಟಿಗೆ ಸೇರಿಸಿ” ಬಳಸಿ.",
+    remove:"ತೆಗೆಯಿರಿ", printSheet:"ಮುದ್ರಿಸಿ ಅಥವಾ PDF ಆಗಿ ಉಳಿಸಿ", clearSheet:"ಆಹಾರ ಪಟ್ಟಿ ಖಾಲಿ ಮಾಡಿ", cleared:"ಆಹಾರ ಪಟ್ಟಿ ಖಾಲಿಯಾಗಿದೆ",
+    confirmClear:"ಈ ಸಾಧನದಲ್ಲಿ ಆಹಾರ ಪಟ್ಟಿ ಖಾಲಿ ಮಾಡಬೇಕೆ?",
+    printTitle:"ನುಂಗುವಿಕೆ ಆಹಾರ ಪಟ್ಟಿ", printDate:"ದಿನಾಂಕ", printAlways:"ಬಡಿಸುವ ಮೊದಲು ಪ್ರತಿ ಬಾರಿ ಪರೀಕ್ಷಿಸಿ. ಊಟದ ವೇಳೆ ಕೆಮ್ಮು, ಒದ್ದೆ ಧ್ವನಿ ಅಥವಾ ಉಸಿರಾಟದ ತೊಂದರೆ ಕಂಡರೆ ನಿಲ್ಲಿಸಿ ಚಿಕಿತ್ಸಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.",
+    disclaimer:"ವಾಕ್-ಭಾಷಾ ಚಿಕಿತ್ಸಕರೊಂದಿಗೆ ಕೆಲಸ ಮಾಡುವ ಕುಟುಂಬಗಳು ಮತ್ತು ವೈದ್ಯರಿಗಾಗಿ. ಇದು ನುಂಗುವಿಕೆ ಮೌಲ್ಯಮಾಪನಕ್ಕೆ ಪರ್ಯಾಯವಲ್ಲ. ಬಡಿಸುವ ಮೊದಲು ಪ್ರತಿ ಬಾರಿ IDDSI ಪರೀಕ್ಷೆ ಮಾಡಿ.",
+    iddsiCredit:"IDDSI ಹಂತಗಳು, ಬಣ್ಣಗಳು ಮತ್ತು ಪರೀಕ್ಷಾ ವಿಧಾನಗಳು: © The International Dysphagia Diet Standardisation Initiative 2016, iddsi.org/framework, CC BY-SA 4.0. ಈ ಆ್ಯಪ್ IDDSI ನಿರ್ಮಿಸಿದ್ದು ಅಥವಾ ಅನುಮೋದಿಸಿದ್ದು ಅಲ್ಲ.",
+    officialDefs:"ಅಧಿಕೃತ ವ್ಯಾಖ್ಯಾನಗಳು", builtBy:"ರಚನೆ",
+    lv0:"ತೆಳು", lv1:"ಸ್ವಲ್ಪ ದಪ್ಪ", lv2:"ಸೌಮ್ಯ ದಪ್ಪ", lv3d:"ಮಧ್ಯಮ ದಪ್ಪ", lv3f:"ದ್ರವೀಕೃತ", lv4d:"ಅತಿ ದಪ್ಪ", lv4f:"ನಯವಾಗಿ ರುಬ್ಬಿದ", lv5:"ಕೊಚ್ಚಿದ ಮತ್ತು ತೇವ", lv6:"ಮೃದು, ತುತ್ತು ಗಾತ್ರ"
+  },
+  te:{
+    appName:"Safe Swallow Kitchen", appSub:"IDDSI స్థాయిలకు సరిపోయే భారతీయ వంటకాలు", language:"భాష",
+    netOnline:"ఆన్‌లైన్", netOffline:"ఆఫ్‌లైన్ – పని కొనసాగుతోంది",
+    introTitle:"థెరపిస్ట్ సూచించిన స్థాయిలోనే వండండి",
+    introText:"పానీయం లేదా ఆహార స్థాయిని ఎంచుకోండి. ఆ గట్టిదనంలో భారతీయ వంటకాలు, వడ్డించే ముందు చేయాల్సిన పరీక్ష కనిపిస్తాయి.",
+    ladderTitle:"IDDSI స్థాయిలు", drinks:"పానీయాలు", foods:"ఆహారం", level:"స్థాయి", recipesN:"వంటకాలు",
+    ladderNote:"స్థాయి 7 (సులభంగా నమిలే, సాధారణ ఆహారం) ఇక్కడ లేదు.", showAll:"అన్ని వంటకాలు చూపించు",
+    search:"వంటకం వెతకండి", searchPh:"వెతకండి: రాగి, పెరుగన్నం, పప్పు…",
+    countAll:"{n} వంటకాలు", countLevel:"స్థాయి {l} లో {n} వంటకాలు", none:"ఏదీ సరిపోలలేదు. శోధన తొలగించండి లేదా వేరే స్థాయి ఎంచుకోండి.",
+    langNote:"వంట విధానం ప్రస్తుతం ఇంగ్లీష్‌లో ఉంది. వంటకాల పేర్లు మీ భాషలో ఉన్నాయి.",
+    howToMake:"తయారీ విధానం", ingredients:"పదార్థాలు", method:"విధానం", checkBefore:"వడ్డించే ముందు పరీక్షించండి", watchFor:"జాగ్రత్త",
+    addSheet:"ఆహార పట్టికకు చేర్చు", inSheet:"ఆహార పట్టికలో ఉంది", added:"ఆహార పట్టికకు చేర్చబడింది", removed:"ఆహార పట్టిక నుండి తీసివేయబడింది",
+    testLabel:"పరీక్షించే విధానం",
+    flowTitle:"పానీయం చిక్కదనం పరీక్ష: IDDSI ఫ్లో టెస్ట్",
+    flowHow:"10 mL స్లిప్-టిప్ సిరంజిలో పానీయం నింపి, కొనను మూసి, తర్వాత 10 సెకన్లు ప్రవహించనివ్వండి. సిరంజిలో మిగిలినది నమోదు చేయండి.",
+    flowLeft:"10 సెకన్ల తర్వాత మిగిలిన mL", flowRange:"0 నుండి 10 మధ్య సంఖ్య నమోదు చేయండి.",
+    flowBoundary:"సరిగ్గా సరిహద్దులో ఉంది. నిర్ణయించే ముందు మళ్లీ పరీక్షించండి.",
+    flowL3note:"స్థాయి 4 కోసం ఫోర్క్ డ్రిప్, స్పూన్ టిల్ట్ పరీక్షలు వాడండి.",
+    riskTitle:"గొంతులో అడ్డుపడే ప్రమాదం ఉన్న ఆహారాలు",
+    riskIntro:"స్పీచ్-లాంగ్వేజ్ పాథాలజిస్ట్ అనుమతించకపోతే వీటిని నివారించండి. భారతీయ ఉదాహరణలు ఇవ్వబడ్డాయి.",
+    sheetTitle:"రోగి ఆహార పట్టిక",
+    sheetIntro:"ప్రతి కార్డులోని బటన్‌తో వంటకాలు చేర్చి, వివరాలు నింపి, కుటుంబానికి ఇవ్వడానికి ప్రింట్ చేయండి లేదా PDFగా సేవ్ చేయండి.",
+    pCode:"రోగి కోడ్", pCodeHint:"పేరు కాదు, కోడ్ వాడండి.", pDrink:"సూచించిన పానీయ స్థాయి", pFood:"సూచించిన ఆహార స్థాయి", pBy:"సూచించినవారు (పేరు, RCI సంఖ్య)",
+    sheetEmpty:"పట్టికలో ఇంకా వంటకాలు లేవు. వంటకం కార్డులో “ఆహార పట్టికకు చేర్చు” వాడండి.",
+    remove:"తీసివేయి", printSheet:"ప్రింట్ లేదా PDFగా సేవ్ చేయండి", clearSheet:"ఆహార పట్టిక ఖాళీ చేయండి", cleared:"ఆహార పట్టిక ఖాళీ అయింది",
+    confirmClear:"ఈ పరికరంలో ఆహార పట్టిక ఖాళీ చేయాలా?",
+    printTitle:"మింగుడు ఆహార పట్టిక", printDate:"తేదీ", printAlways:"వడ్డించే ముందు ప్రతిసారి పరీక్షించండి. భోజనం సమయంలో దగ్గు, తడి గొంతు లేదా ఆయాసం వస్తే ఆపి థెరపిస్ట్‌ను సంప్రదించండి.",
+    disclaimer:"స్పీచ్-లాంగ్వేజ్ పాథాలజిస్ట్‌తో పనిచేసే కుటుంబాలు, వైద్యుల కోసం. ఇది మింగుడు అంచనాకు ప్రత్యామ్నాయం కాదు. వడ్డించే ముందు ప్రతిసారి IDDSI పరీక్ష చేయండి.",
+    iddsiCredit:"IDDSI స్థాయిలు, రంగులు, పరీక్షా విధానాలు: © The International Dysphagia Diet Standardisation Initiative 2016, iddsi.org/framework, CC BY-SA 4.0. ఈ యాప్‌ను IDDSI తయారు చేయలేదు, ఆమోదించలేదు.",
+    officialDefs:"అధికారిక నిర్వచనాలు", builtBy:"రూపకల్పన",
+    lv0:"పలుచన", lv1:"కొద్దిగా చిక్కన", lv2:"స్వల్పంగా చిక్కన", lv3d:"మధ్యస్థ చిక్కన", lv3f:"ద్రవీకృత", lv4d:"అతి చిక్కన", lv4f:"మెత్తగా రుబ్బిన", lv5:"సన్నగా తరిగిన, తేమగా", lv6:"మెత్తని, ముద్ద పరిమాణం"
+  },
+  hi:{
+    appName:"Safe Swallow Kitchen", appSub:"IDDSI स्तरों के अनुसार भारतीय व्यंजन", language:"भाषा",
+    netOnline:"ऑनलाइन", netOffline:"ऑफ़लाइन – काम जारी है",
+    introTitle:"थेरेपिस्ट द्वारा बताए स्तर पर ही पकाएँ",
+    introText:"पेय या भोजन का स्तर चुनें। उस बनावट के भारतीय व्यंजन और परोसने से पहले की जाने वाली जाँच दिखेगी।",
+    ladderTitle:"IDDSI स्तर", drinks:"पेय", foods:"भोजन", level:"स्तर", recipesN:"व्यंजन",
+    ladderNote:"स्तर 7 (आसानी से चबाने वाला और सामान्य भोजन) यहाँ शामिल नहीं है।", showAll:"सभी व्यंजन दिखाएँ",
+    search:"व्यंजन खोजें", searchPh:"खोजें: रागी, दही चावल, दाल…",
+    countAll:"{n} व्यंजन", countLevel:"स्तर {l} पर {n} व्यंजन", none:"कोई व्यंजन नहीं मिला। खोज हटाएँ या दूसरा स्तर चुनें।",
+    langNote:"बनाने की विधि अभी अंग्रेज़ी में है। व्यंजनों के नाम आपकी भाषा में हैं।",
+    howToMake:"बनाने का तरीका", ingredients:"सामग्री", method:"विधि", checkBefore:"परोसने से पहले जाँचें", watchFor:"सावधानी",
+    addSheet:"आहार सूची में जोड़ें", inSheet:"आहार सूची में है", added:"आहार सूची में जोड़ा गया", removed:"आहार सूची से हटाया गया",
+    testLabel:"जाँच का तरीका",
+    flowTitle:"पेय की गाढ़ापन जाँच: IDDSI फ़्लो टेस्ट",
+    flowHow:"10 mL स्लिप-टिप सिरिंज में पेय भरें, सिरा बंद करें, फिर 10 सेकंड बहने दें। सिरिंज में बचा हुआ मान दर्ज करें।",
+    flowLeft:"10 सेकंड बाद बचे mL", flowRange:"0 से 10 के बीच संख्या दर्ज करें।",
+    flowBoundary:"ठीक सीमा पर है। निर्णय से पहले जाँच दोहराएँ।",
+    flowL3note:"स्तर 4 के लिए फ़ोर्क ड्रिप और स्पून टिल्ट टेस्ट करें।",
+    riskTitle:"दम घुटने के जोखिम वाले खाद्य पदार्थ",
+    riskIntro:"जब तक स्पीच-लैंग्वेज पैथोलॉजिस्ट अनुमति न दें, इनसे बचें। भारतीय उदाहरण दिए गए हैं।",
+    sheetTitle:"मरीज़ की आहार सूची",
+    sheetIntro:"हर कार्ड के बटन से व्यंजन जोड़ें, विवरण भरें, फिर परिवार को देने के लिए प्रिंट करें या PDF सहेजें।",
+    pCode:"मरीज़ कोड", pCodeHint:"नाम नहीं, कोड लिखें।", pDrink:"निर्धारित पेय स्तर", pFood:"निर्धारित भोजन स्तर", pBy:"निर्धारित करने वाले (नाम, RCI संख्या)",
+    sheetEmpty:"सूची में अभी कोई व्यंजन नहीं। व्यंजन कार्ड पर “आहार सूची में जोड़ें” दबाएँ।",
+    remove:"हटाएँ", printSheet:"प्रिंट करें या PDF सहेजें", clearSheet:"आहार सूची खाली करें", cleared:"आहार सूची खाली की गई",
+    confirmClear:"इस डिवाइस पर आहार सूची खाली करें?",
+    printTitle:"निगलने की आहार सूची", printDate:"तारीख़", printAlways:"हर बार परोसने से पहले जाँचें। भोजन के दौरान खाँसी, गीली आवाज़ या साँस फूलने पर रुकें और थेरेपिस्ट से संपर्क करें।",
+    disclaimer:"स्पीच-लैंग्वेज पैथोलॉजिस्ट के साथ काम करने वाले परिवारों और चिकित्सकों के लिए। यह निगलने के मूल्यांकन का विकल्प नहीं है। परोसने से पहले हर बार IDDSI जाँच करें।",
+    iddsiCredit:"IDDSI स्तर, रंग और जाँच विधियाँ: © The International Dysphagia Diet Standardisation Initiative 2016, iddsi.org/framework, CC BY-SA 4.0। यह ऐप IDDSI द्वारा बनाया या अनुमोदित नहीं है।",
+    officialDefs:"आधिकारिक परिभाषाएँ", builtBy:"निर्माता",
+    lv0:"पतला", lv1:"थोड़ा गाढ़ा", lv2:"हल्का गाढ़ा", lv3d:"मध्यम गाढ़ा", lv3f:"तरलीकृत", lv4d:"बहुत गाढ़ा", lv4f:"प्यूरी", lv5:"बारीक कटा और नम", lv6:"नरम, कौर के आकार का"
+  }
+};
+
+/* ===== C. SHARED HELPERS (from ASLP App Kit) ===== */
+const $ = s => document.querySelector(s);
+const store = (() => { const mem = {}; let ok = true;
+  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ ok=false; }
+  return { ok,
+    get(k,d){ try{ const v = ok ? localStorage.getItem(k) : mem[k]; return v==null ? d : JSON.parse(v); }catch(e){ return d; } },
+    set(k,v){ const s = JSON.stringify(v); try{ ok ? localStorage.setItem(k,s) : (mem[k]=s); }catch(e){ mem[k]=s; } } };
+})();
+const nav2 = (navigator.language||"en").slice(0,2);
+let lang = store.get(APP.langKey, null) || (nav2 in I18N ? nav2 : "en");
+const t = (k, vars) => { let s = (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k; if (vars) for (const v in vars) s = s.replace("{"+v+"}", vars[v]); return s; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg){ const el=$("#toast"); el.textContent=msg; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2000); }
+function updateNet(){ const n=$("#net"), on=navigator.onLine; n.dataset.state=on?"online":"offline"; n.textContent=on?t("netOnline"):t("netOffline"); }
+
+/* ===== D. CONTENT ===== */
+// IDDSI levels covered. key = unique id; lvl = number; kind = drink | food
+const LEVELS = [
+  {key:"d0", lvl:0, kind:"drink", name:"lv0", color:"--l0", dark:true,
+    test:"Flow test: less than 1 mL left in the 10 mL syringe after 10 seconds.",
+    who:"Flows like water. Can be taken from any cup or straw."},
+  {key:"d1", lvl:1, kind:"drink", name:"lv1", color:"--l1",
+    test:"Flow test: 1 to 4 mL left after 10 seconds.",
+    who:"Thicker than water. Flows through a straw and teat."},
+  {key:"d2", lvl:2, kind:"drink", name:"lv2", color:"--l2", dark:true,
+    test:"Flow test: 4 to 8 mL left after 10 seconds.",
+    who:"Flows off a spoon. Takes mild effort to drink through a standard straw."},
+  {key:"d3", lvl:3, kind:"drink", name:"lv3d", color:"--l3", dark:true,
+    test:"Flow test: more than 8 mL left after 10 seconds. Drips slowly through fork prongs.",
+    who:"Can be drunk from a cup with effort, or taken with a spoon. Too thick for a straw."},
+  {key:"d4", lvl:4, kind:"drink", name:"lv4d", color:"--l4",
+    test:"Fork drip and spoon tilt tests (as for level 4 food).",
+    who:"Usually eaten with a spoon. Cannot be drunk from a cup or sucked through a straw."},
+  {key:"f3", lvl:3, kind:"food", name:"lv3f", color:"--l3", dark:true,
+    test:"Fork drip: drips slowly in dollops through the prongs. Pours easily from a spoon when tilted. No lumps.",
+    who:"Smooth, no lumps, no chewing. Can be drunk from a cup or taken with a spoon."},
+  {key:"f4", lvl:4, kind:"food", name:"lv4f", color:"--l4",
+    test:"Fork drip: sits in a mound above the fork, at most a small tail below. Spoon tilt: holds its shape and slides off with little left behind. Not firm or sticky.",
+    who:"Smooth with no lumps. No chewing. Eaten with a spoon."},
+  {key:"f5", lvl:5, kind:"food", name:"lv5", color:"--l5", dark:true,
+    test:"Fork pressure: easily squashed. Particles fit between the fork prongs (adults up to 4 mm, children up to 2 mm). Spoon tilt: slides off easily. No thin liquid leaking out.",
+    who:"Soft and moist with small lumps that need very little chewing."},
+  {key:"f6", lvl:6, kind:"food", name:"lv6", color:"--l6",
+    test:"Fork pressure: a thumbnail-sized piece squashes and does not regain its shape when pressed until the thumbnail blanches. Pieces no bigger than 1.5 cm for adults (8 mm for children).",
+    who:"Soft, tender and moist. Needs chewing but no biting."}
+];
+
+// RECIPES — draft content for clinical review. Quantities are starting points;
+// the IDDSI test decides, never the recipe.
+const RECIPES = [
+  {id:"buttermilk", lv:"d2", name:"Thickened spiced buttermilk", local:{kn:"ಮಜ್ಜಿಗೆ",te:"మజ్జిగ",hi:"छाछ"},
+    ing:["1 cup (200 mL) buttermilk, well blended","Pinch of salt and roasted cumin powder (finely ground)","Gum-based thickener, as per the product's chart for level 2"],
+    steps:["Blend the buttermilk so no curd lumps remain. Strain through a fine tea strainer.","Stir in salt and cumin powder. Do not add chopped coriander, ginger bits or curry leaves.","Add thickener exactly as the product chart says for level 2 (mildly thick). Whisk well.","Wait the time the product label states (often 1–5 minutes) before testing."],
+    check:"Flow test: 4–8 mL left after 10 seconds.",
+    watch:"Buttermilk can separate on standing. Stir and re-test if kept for more than an hour."},
+  {id:"rasam", lv:"d2", name:"Strained clear rasam", local:{kn:"ಸಾರು",te:"చారు",hi:"रसम"},
+    ing:["1 cup rasam, freshly made","Gum-based thickener, as per the product chart for level 2"],
+    steps:["Strain the rasam twice through a fine strainer. Remove every tomato piece, dal grain, seed and leaf.","Let it cool to warm (very hot liquids can test thinner).","Add thickener as the chart says for level 2 and whisk.","Wait as per the label, then test at serving temperature."],
+    check:"Flow test: 4–8 mL left after 10 seconds.",
+    watch:"Never serve rasam poured over rice. Thin liquid with solids (mixed consistency) is high risk."},
+  {id:"coconut", lv:"d1", name:"Thickened tender coconut water", local:{kn:"ಎಳನೀರು",te:"కొబ్బరి నీళ్లు",hi:"नारियल पानी"},
+    ing:["1 cup tender coconut water, strained","Gum-based thickener, as per the product chart for level 1"],
+    steps:["Strain out any coconut flesh pieces.","Add thickener as the chart says for level 1 (slightly thick). Whisk well.","Wait as per the label, then test."],
+    check:"Flow test: 1–4 mL left after 10 seconds.",
+    watch:"Use the tender coconut flesh only if separately pureed and the food level allows it."},
+  {id:"lassi", lv:"d2", name:"Smooth mango lassi", local:{kn:"ಮಾವಿನ ಲಸ್ಸಿ",te:"మామిడి లస్సీ",hi:"आम की लस्सी"},
+    ing:["½ cup thick curd","½ cup ripe mango pulp (no fibres)","¼ cup milk","Sugar to taste"],
+    steps:["Blend curd, mango pulp, milk and sugar until completely smooth.","Pass through a fine strainer to remove mango fibres.","Test. If too thin, add more curd and blend; if too thick, add milk a spoon at a time."],
+    check:"Flow test: 4–8 mL left for level 2. Thickness varies with the curd and mango, so test every batch.",
+    watch:"Natural thickness changes as it chills. Test at the temperature you will serve."},
+  {id:"ragi", lv:"d3", name:"Ragi malt", local:{kn:"ರಾಗಿ ಅಂಬಲಿ",te:"రాగి జావ",hi:"रागी माल्ट"},
+    ing:["2 level tablespoons ragi flour","1 cup water or milk","Jaggery or salt to taste"],
+    steps:["Mix the ragi flour in ¼ cup cold water to a smooth paste with no lumps.","Bring the rest of the water or milk to a boil and stir in the paste.","Cook on low heat for 5–7 minutes, stirring all the time.","Add jaggery or salt. Strain if any lumps remain.","Cool to serving temperature, then test. Add more flour (cooked again) if too thin; add warm liquid if too thick."],
+    check:"Flow test: more than 8 mL left after 10 seconds, and it drips slowly through a fork.",
+    watch:"Ragi keeps thickening as it cools. Starch drinks can also thin in the mouth with saliva, so ask the therapist whether natural thickening is suitable for this patient."},
+  {id:"dal", lv:"f3", name:"Liquidised moong dal", local:{kn:"ಹೆಸರು ಬೇಳೆ ತೊವ್ವೆ",te:"పెసరపప్పు",hi:"मूंग दाल"},
+    ing:["½ cup moong dal, pressure-cooked very soft","Water or vegetable stock","Salt, turmeric, a little ghee"],
+    steps:["Pressure-cook the dal until fully mashed (4–5 whistles).","Blend with water until completely smooth.","Strain through a fine strainer.","Add ghee in which cumin was heated, then strain the cumin out. Do not add whole seeds or leaves.","Adjust with water until it pours easily from a spoon."],
+    check:"Fork drip: drips slowly in dollops through the prongs. Pours from a spoon. No lumps.",
+    watch:"Dal thickens as it cools. Re-test before each serving and loosen with warm water."},
+  {id:"curdrice", lv:"f4", name:"Pureed curd rice", local:{kn:"ಮೊಸರನ್ನ",te:"పెరుగన్నం",hi:"दही चावल"},
+    ing:["½ cup rice, cooked very soft","½ cup fresh curd","¼ cup milk","Salt to taste"],
+    steps:["Cook the rice with extra water until very soft.","Blend the warm rice with milk until smooth, then blend in the curd and salt.","Strain or blend again until no grains remain.","For flavour, heat ghee with mustard and curry leaves, then strain the seasoning out completely."],
+    check:"Spoon tilt: holds its shape on the spoon and slides off with little left behind. Not sticky. No grains.",
+    watch:"Rice purée turns sticky and firm on standing. Make fresh and add curd if it becomes gluey."},
+  {id:"khichdi", lv:"f4", name:"Pureed khichdi", local:{kn:"ಕಿಚಡಿ",te:"కిచిడీ",hi:"खिचड़ी"},
+    ing:["¼ cup rice","¼ cup moong dal","Bottle gourd or carrot, peeled (optional)","Salt, turmeric, ghee"],
+    steps:["Pressure-cook rice, dal and vegetables with 4 times the water until very soft.","Blend to a completely smooth purée, adding hot water if needed.","Strain through a sieve to remove skins and grains.","Stir in a little ghee."],
+    check:"Fork drip: sits in a mound with no more than a short tail. Fork leaves a clear pattern. No lumps.",
+    watch:"Avoid adding whole spices or peas."},
+  {id:"pumpkin", lv:"f4", name:"Pumpkin and dal purée", local:{kn:"ಕುಂಬಳಕಾಯಿ ಬೇಳೆ",te:"గుమ్మడికాయ పప్పు",hi:"कद्दू दाल"},
+    ing:["1 cup yellow pumpkin, peeled and seeded","¼ cup toor dal","Salt, turmeric, a little tamarind water"],
+    steps:["Pressure-cook pumpkin and dal until very soft.","Blend until smooth with a little tamarind water and salt.","Strain to remove any fibres or skin."],
+    check:"Spoon tilt: holds its shape and slides off easily. Fork drip: sits in a mound.",
+    watch:"Sambar powder can contain coarse bits. Use only finely ground spices."},
+  {id:"payasa", lv:"f4", name:"Smooth rava payasa", local:{kn:"ರವೆ ಪಾಯಸ",te:"రవ్వ పాయసం",hi:"सूजी की खीर"},
+    ing:["2 tablespoons fine rava (sooji)","1 cup milk","Sugar or jaggery","Cardamom powder (finely ground)"],
+    steps:["Roast the rava lightly in ghee.","Add milk and cook, stirring, until soft and thick.","Add sugar and cardamom powder.","Blend until smooth. Leave out nuts and raisins."],
+    check:"Spoon tilt: holds its shape and slides off. Not sticky.",
+    watch:"Thickens a lot as it cools. Loosen with warm milk and re-test."},
+  {id:"fruit", lv:"f4", name:"Banana and papaya purée", local:{kn:"ಬಾಳೆಹಣ್ಣು–ಪಪ್ಪಾಯಿ",te:"అరటి–బొప్పాయి",hi:"केला–पपीता"},
+    ing:["1 ripe banana","½ cup ripe papaya, seeds removed","1–2 tablespoons curd or milk (optional)"],
+    steps:["Blend the fruit until completely smooth.","Add curd or milk only if needed to loosen.","Serve fresh."],
+    check:"Spoon tilt: holds its shape and slides off. Fork drip: sits in a mound.",
+    watch:"Fruit purées can release juice on standing. Stir and re-test; do not serve if liquid separates."},
+  {id:"idli", lv:"f5", name:"Idli mashed in thick sambar", local:{kn:"ಇಡ್ಲಿ ಸಾಂಬಾರ್",te:"ఇడ్లీ సాంబార్",hi:"इडली सांभर"},
+    ing:["2 soft idlis, freshly steamed","½ cup sambar, blended smooth and strained"],
+    steps:["Blend the sambar and strain out vegetable pieces, seeds and leaves.","Mash the idlis with a fork into the hot sambar until moist throughout.","Leave to soak for 2 minutes, then mash again until lumps are smaller than 4 mm."],
+    check:"Fork pressure: squashes easily. Spoon tilt: slides off. No thin liquid pooling around it.",
+    watch:"Dry or day-old idli is crumbly and high risk. Serve fresh and well soaked."},
+  {id:"fish", lv:"f5", name:"Minced fish in smooth curry", local:{kn:"ಮೀನು ಸಾರು",te:"చేపల పులుసు",hi:"मछली करी"},
+    ing:["100 g boneless fish (e.g. seer or pomfret fillet)","½ cup fish curry gravy, blended smooth"],
+    steps:["Steam or poach the fish until it flakes easily.","Check carefully by hand for every bone.","Mince finely with a fork (pieces up to 4 mm).","Mix with the smooth gravy until moist throughout."],
+    check:"Fork pressure: squashes easily. Spoon tilt: slides off. No separated liquid.",
+    watch:"Fish bones are a serious hazard. Check twice."},
+  {id:"upma", lv:"f5", name:"Soft rava upma", local:{kn:"ಉಪ್ಪಿಟ್ಟು",te:"ఉప్మా",hi:"उपमा"},
+    ing:["¼ cup fine rava","1 cup water (more than usual)","Salt, ghee","Finely grated carrot (optional)"],
+    steps:["Roast the rava lightly.","Boil the water with salt and grated carrot, then add rava and cook until very soft.","Leave out cashews, chana dal, urad dal, mustard seeds and curry leaves, or strain them out of the seasoning.","Add warm water or ghee to keep it moist."],
+    check:"Fork pressure: squashes easily. Falls off a spoon when tilted. Not crumbly or dry.",
+    watch:"Upma dries and turns crumbly as it cools. Serve warm and moist."},
+  {id:"kurma", lv:"f6", name:"Soft vegetable kurma", local:{kn:"ತರಕಾರಿ ಕುರ್ಮ",te:"కూరగాయల కుర్మా",hi:"सब्ज़ी कोरमा"},
+    ing:["Potato, carrot, pumpkin, bottle gourd (peeled)","Smooth kurma gravy (coconut and spices blended fine)"],
+    steps:["Cut vegetables into pieces no bigger than 1.5 cm.","Cook until a fork squashes them easily.","Simmer in smooth gravy. Leave out peas, beans, drumstick and corn."],
+    check:"Fork pressure: each piece squashes and stays squashed. Pieces 1.5 cm or smaller.",
+    watch:"Beans and drumstick are stringy and high risk. Leave them out."},
+  {id:"chicken", lv:"f6", name:"Tender chicken curry", local:{kn:"ಕೋಳಿ ಸಾರು",te:"కోడి కూర",hi:"चिकन करी"},
+    ing:["150 g boneless chicken","Smooth onion-tomato gravy"],
+    steps:["Pressure-cook the chicken in the gravy until very tender.","Cut into pieces no bigger than 1.5 cm, removing all skin, gristle and bone.","Keep the pieces coated in gravy so they stay moist."],
+    check:"Fork pressure: a piece breaks apart easily and does not spring back.",
+    watch:"Chicken dries and toughens if reheated. Add gravy and re-test."}
+];
+
+const RISK = [
+  ["Hard or dry","Groundnuts, roasted chana, chakli, murukku, boondi, dry chapati or roti, khakhra"],
+  ["Crunchy or crumbly","Crisp dosa, papad, mixture, rusk, dry biscuits, chikki"],
+  ["Puffed or light","Puffed rice (mandakki, murmura), poha chiwda"],
+  ["Sticky or chewy","Thick sticky rice, sticky sweets, toffee, chewing gum, nut butter"],
+  ["Fibrous or stringy","Drumstick, beans, raw mango, sugarcane, jackfruit, tough meat"],
+  ["Seeds, skins and husks","Mustard seeds and curry leaves in tempering, whole spices, guava seeds, grape skins, coconut pieces"],
+  ["Bones","Fish bones, chicken bones"],
+  ["Mixed thin and thick","Rasam or sambar with rice, cereal or cornflakes in milk, soup with vegetable pieces"],
+  ["Floppy or juicy","Raw salad leaves, thin cucumber slices, watermelon, oranges"],
+  ["Round or long","Grapes, whole peanuts, chickpeas, sausages"]
+];
+
+/* ===== E. RENDERING ===== */
+let current = null;            // selected level key, or null for all
+let sheet = store.get(APP.storageKey, {ids:[], code:"", drink:"", food:"", by:""});
+const L = k => LEVELS.find(l => l.key === k);
+const levelLabel = lv => `${t("level")} ${lv.lvl}: ${t(lv.name)}`;
+const kindLabel = lv => lv.kind === "drink" ? t("drinks") : t("foods");
+const textOn = lv => lv.dark ? "#17212E" : "#FFFFFF";
+
+function renderLadder(){
+  const rows = [];
+  rows.push(`<div class="colhead">${esc(t("level"))}</div><div class="colhead">${esc(t("drinks"))}</div><div class="colhead">${esc(t("foods"))}</div>`);
+  for (let n = 0; n <= 6; n++){
+    const d = LEVELS.find(l => l.kind==="drink" && l.lvl===n), f = LEVELS.find(l => l.kind==="food" && l.lvl===n);
+    const cell = lv => {
+      if (!lv) return `<span class="rung empty" aria-hidden="true"></span>`;
+      const c = RECIPES.filter(r => r.lv === lv.key).length;
+      return `<button type="button" class="rung" data-lv="${lv.key}" aria-pressed="${current===lv.key}">
+        <span class="sw" style="background:var(${lv.color})"></span><span class="nm">${esc(t(lv.name))}</span><span class="ct">${c}</span>
+        <span class="sr">${esc(kindLabel(lv))}, ${esc(levelLabel(lv))}, ${c} ${esc(t("recipesN"))}</span></button>`;
+    };
+    rows.push(`<div class="lvnum" aria-hidden="true">${n}</div>${cell(d)}${cell(f)}`);
+  }
+  $("#ladder").innerHTML = rows.join("");
+}
+
+function renderLevelInfo(){
+  const lv = current && L(current);
+  if (!lv){ $("#levelInfo").innerHTML = ""; return; }
+  $("#levelInfo").innerHTML = `<div class="level-info" style="--lvc:var(${lv.color})">
+    <h3>${esc(kindLabel(lv))}: ${esc(levelLabel(lv))}</h3>
+    <p>${esc(lv.who)}</p>
+    <p class="test"><b>${esc(t("testLabel"))}:</b> ${esc(lv.test)}</p></div>`;
+}
+
+function badge(lv){
+  return `<div class="badge" style="background:var(${lv.color});color:${textOn(lv)}" aria-hidden="true"><b>${lv.lvl}</b><span>${esc(kindLabel(lv))}</span></div>`;
+}
+
+function renderRecipes(){
+  const q = $("#q").value.trim().toLowerCase();
+  const list = RECIPES.filter(r => (!current || r.lv === current) &&
+    (!q || (r.name + " " + Object.values(r.local).join(" ") + " " + r.ing.join(" ")).toLowerCase().includes(q)));
+  $("#count").textContent = current ? t("countLevel", {n:list.length, l:L(current).lvl}) : t("countAll", {n:list.length});
+  if (!list.length){ $("#recipes").innerHTML = `<div class="empty-state">${esc(t("none"))}</div>`; return; }
+  $("#recipes").innerHTML = list.map(r => {
+    const lv = L(r.lv), on = sheet.ids.includes(r.id);
+    const local = lang !== "en" && r.local[lang] ? `<div class="local" lang="${lang}">${esc(r.local[lang])}</div>` : "";
+    return `<article class="recipe">
+      <div class="recipe-head">${badge(lv)}<div><h4>${esc(r.name)}</h4>${local}<div class="lvname">${esc(kindLabel(lv))}, ${esc(levelLabel(lv))}</div></div></div>
+      <details><summary>${esc(t("howToMake"))}</summary><div class="body" lang="en">
+        <h5>${esc(t("ingredients"))}</h5><ul>${r.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>
+        <h5>${esc(t("method"))}</h5><ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+      </div></details>
+      <div class="body" lang="en">
+        <div class="check"><b>${esc(t("checkBefore"))}:</b> ${esc(r.check)}</div>
+        <div class="watch"><b>${esc(t("watchFor"))}:</b> ${esc(r.watch)}</div>
+      </div>
+      <div class="recipe-foot"><button type="button" class="ghost small add" data-add="${r.id}" aria-pressed="${on}">${esc(on ? t("inSheet") : t("addSheet"))}</button></div>
+    </article>`;
+  }).join("");
+}
+
+function renderRisk(){
+  $("#risk").innerHTML = RISK.map(([k,v]) => `<div lang="en"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join("");
+}
+
+/* Flow test helper */
+function flowResult(ml){
+  if (ml < 1) return {lv:"d0"};
+  if (ml <= 4) return {lv:"d1", edge: ml===1 || ml===4};
+  if (ml <= 8) return {lv:"d2", edge: ml===8};
+  return {lv:"d3", note:true};
+}
+function renderFlow(){
+  const raw = $("#flowMl").value.trim(), n = Number(raw);
+  const svgBase = fill => {
+    const w = 100, x0 = 8, h = 18, y0 = 11, fw = Math.max(0, Math.min(10, fill)) / 10 * w;
+    const ticks = Array.from({length:11}, (_,i) => `<line x1="${x0 + i*w/10}" x2="${x0 + i*w/10}" y1="${y0}" y2="${y0 + (i%5===0?7:4)}" stroke="var(--ink)" stroke-width=".8"/>`).join("");
+    return `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="3" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.4"/>
+      <rect x="${x0 + w - fw}" y="${y0+1}" width="${fw}" height="${h-2}" fill="var(--accent)" opacity=".35"/>${ticks}
+      <path d="M${x0+w} ${y0+6}h14v6h-14" fill="none" stroke="var(--ink)" stroke-width="1.4"/><line x1="${x0+w+14}" x2="${x0+w+26}" y1="${y0+9}" y2="${y0+9}" stroke="var(--ink)" stroke-width="2"/>
+      <line x1="2" x2="${x0}" y1="${y0+9}" y2="${y0+9}" stroke="var(--ink)" stroke-width="1.4"/>`;
+  };
+  if (raw === ""){ $("#syr").innerHTML = svgBase(0); $("#flowOut").textContent = "–"; $("#flowNote").textContent = ""; return; }
+  if (!Number.isFinite(n) || n < 0 || n > 10){ $("#syr").innerHTML = svgBase(0); $("#flowOut").textContent = "–"; $("#flowNote").textContent = t("flowRange"); return; }
+  const r = flowResult(n), lv = L(r.lv);
+  $("#syr").innerHTML = svgBase(n);
+  $("#flowOut").textContent = levelLabel(lv);
+  $("#flowNote").textContent = [r.edge ? t("flowBoundary") : "", r.note ? t("flowL3note") : ""].filter(Boolean).join(" ");
+}
+
+/* Diet sheet */
+const saveSheet = () => store.set(APP.storageKey, sheet);
+function renderSheet(){
+  ["code","drink","food","by"].forEach(k => { const el = $("#p" + k[0].toUpperCase() + k.slice(1)); if (document.activeElement !== el) el.value = sheet[k] || ""; });
+  const items = sheet.ids.map(id => RECIPES.find(r => r.id === id)).filter(Boolean);
+  $("#sheetList").innerHTML = items.length ? items.map(r => { const lv = L(r.lv);
+    return `<li><span class="sw" style="background:var(${lv.color})"></span><span class="grow">${esc(r.name)}${lang!=="en"&&r.local[lang]?` <span class="muted">(${esc(r.local[lang])})</span>`:""}<br><span class="muted" style="font-size:.85rem">${esc(kindLabel(lv))}, ${esc(levelLabel(lv))}</span></span>
+      <button type="button" class="ghost small" data-rm="${r.id}">${esc(t("remove"))}</button></li>`; }).join("")
+    : `<li class="muted">${esc(t("sheetEmpty"))}</li>`;
+  $("#printBtn").disabled = !items.length;
+  $("#clearSheet").disabled = !items.length && !sheet.code && !sheet.drink && !sheet.food && !sheet.by;
+}
+function toggleSheet(id){
+  const i = sheet.ids.indexOf(id);
+  if (i >= 0){ sheet.ids.splice(i,1); toast(t("removed")); } else { sheet.ids.push(id); toast(t("added")); }
+  saveSheet(); renderRecipes(); renderSheet();
+}
+function buildPrint(){
+  const items = sheet.ids.map(id => RECIPES.find(r => r.id === id)).filter(Boolean);
+  const d = new Date().toLocaleDateString("en-IN", {day:"2-digit",month:"short",year:"numeric"});
+  $("#sheetPrint").innerHTML = `<h2>${esc(t("printTitle"))}</h2>
+    <table><tr><th>${esc(t("pCode"))}</th><td>${esc(sheet.code||"")}</td><th>${esc(t("printDate"))}</th><td>${esc(d)}</td></tr>
+    <tr><th>${esc(t("pDrink"))}</th><td>${esc(sheet.drink||"")}</td><th>${esc(t("pFood"))}</th><td>${esc(sheet.food||"")}</td></tr>
+    <tr><th>${esc(t("pBy"))}</th><td colspan="3">${esc(sheet.by||"")}</td></tr></table>
+    <p><b>${esc(t("printAlways"))}</b></p>
+    ${items.map(r => { const lv = L(r.lv); return `<div class="recipe-print"><h3>${esc(r.name)}${r.local[lang]&&lang!=="en"?` (${esc(r.local[lang])})`:""}: ${esc(kindLabel(lv))}, ${esc(levelLabel(lv))}</h3>
+      <b>${esc(t("ingredients"))}</b><ul>${r.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>
+      <b>${esc(t("method"))}</b><ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+      <p><b>${esc(t("checkBefore"))}:</b> ${esc(r.check)}<br><b>${esc(t("watchFor"))}:</b> ${esc(r.watch)}</p></div>`; }).join("")}
+    <p style="font-size:9pt;margin-top:14pt">${esc(t("iddsiCredit"))} ${esc(APP.author)}, ${esc(APP.affiliation)}.</p>`;
+}
+
+function renderAll(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  $("#lang").value = lang;
+  $("#langNote").hidden = lang === "en";
+  $("#credit").textContent = `${t("builtBy")}: ${APP.author}, ${APP.affiliation}. v${APP.version}`;
+  updateNet(); renderLadder(); renderLevelInfo(); renderRecipes(); renderRisk(); renderFlow(); renderSheet();
+}
+
+/* ===== F. WIRING ===== */
+$("#lang").addEventListener("change", e => { lang = e.target.value; store.set(APP.langKey, lang); renderAll(); });
+$("#ladder").addEventListener("click", e => { const b = e.target.closest("[data-lv]"); if (!b) return;
+  current = current === b.dataset.lv ? null : b.dataset.lv; renderLadder(); renderLevelInfo(); renderRecipes();
+  const nb = document.querySelector(`[data-lv="${b.dataset.lv}"]`); if (nb) nb.focus(); });
+$("#showAll").addEventListener("click", () => { current = null; $("#q").value = ""; renderLadder(); renderLevelInfo(); renderRecipes(); });
+$("#q").addEventListener("input", renderRecipes);
+$("#recipes").addEventListener("click", e => { const b = e.target.closest("[data-add]"); if (b) toggleSheet(b.dataset.add); });
+$("#sheetList").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (b) toggleSheet(b.dataset.rm); });
+$("#flowMl").addEventListener("input", renderFlow);
+[["pCode","code"],["pDrink","drink"],["pFood","food"],["pBy","by"]].forEach(([id,k]) =>
+  $("#"+id).addEventListener("input", e => { sheet[k] = e.target.value; saveSheet(); renderSheet(); }));
+$("#printBtn").addEventListener("click", () => { buildPrint(); window.print(); });
+$("#clearSheet").addEventListener("click", () => { if (confirm(t("confirmClear"))){ sheet = {ids:[], code:"", drink:"", food:"", by:""}; saveSheet(); renderRecipes(); renderSheet(); toast(t("cleared")); } });
+window.addEventListener("beforeprint", buildPrint);
+window.addEventListener("online", updateNet); window.addEventListener("offline", updateNet);
+renderAll();
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
