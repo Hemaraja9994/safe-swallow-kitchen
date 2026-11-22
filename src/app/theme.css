@@ -1,0 +1,38 @@
+.theme-src{}
+/* ===== safe-swallow-kitchen theme ===== */
+:root{
+  --color-paper: #F7F4EC;
+  --color-surface: #FFFDF7;
+  --color-ink: #2B3A22;
+  --color-muted: #566048;
+  --color-line: #DED9C4;
+  --color-track: #EBE6D6;
+  --color-accent: #3E7A32;
+  --color-grid: #EBE6D6;
+  --font-sans: "Mulish","Noto Sans Kannada","Noto Sans Telugu","Noto Sans Devanagari","Atkinson Hyperlegible",system-ui,sans-serif;
+  --font-display: "Zilla Slab","Noto Sans Kannada","Noto Sans Telugu","Noto Sans Devanagari","Atkinson Hyperlegible",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+  --color-paper: #12150D;
+  --color-surface: #1C2015;
+  --color-ink: #EDF0E4;
+  --color-accent: #79C062;
+  --color-grid: #20251A;
+  --color-muted: #A3B1C2;
+  --color-line: #2B3A4B;
+  --color-track: #22303F;
+  }
+}
+body{
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+h1,h2,h3,h4{ font-family: var(--font-display); }
+header.bg-ink{
+  background-image: linear-gradient(90deg,#d7263d 0 12.5%,#f46036 12.5% 25%,#e2b53c 25% 37.5%,#2e7d4f 37.5% 50%,#1f8a8a 50% 62.5%,#2a6fb0 62.5% 75%,#6a4ea8 75% 87.5%,#8a5200 87.5% 100%);
+  background-size: 100% 4px;
+}
+header.bg-ink{background-repeat:no-repeat;background-position:top}
